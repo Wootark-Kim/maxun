@@ -66,6 +66,7 @@ export interface Data {
   interpreterSettings: RunSettings;
   serializableOutput: any;
   binaryOutput: any;
+  hasChanges?: boolean;
 }
 
 interface RunsTableProps {

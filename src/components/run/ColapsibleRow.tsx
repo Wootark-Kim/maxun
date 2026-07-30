@@ -11,7 +11,8 @@ import {
 } from "@mui/material";
 import { Button } from "@mui/material";
 import { DeleteForever, KeyboardArrowDown, KeyboardArrowUp, Settings } from "@mui/icons-material";
-import { deleteRunFromStorage, getStoredRun } from "../../api/storage";
+import { deleteRunFromStorage, getStoredRun, getRunDiff, RunDiffResponse } from "../../api/storage";
+import { diffLines, Change } from "diff";
 import { columns, Data } from "./RunsTable";
 import { RunContent } from "./RunContent";
 import { getUserById } from "../../api/auth";
@@ -58,6 +59,18 @@ export const CollapsibleRow = ({ row, handleDelete, isOpen, onToggleExpanded, cu
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [runDetails, setRunDetails] = useState<Data>(row);
   const [isLoadingRunDetails, setIsLoadingRunDetails] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
+  const [diffData, setDiffData] = useState<RunDiffResponse | null>(null);
+  const [isDiffLoading, setIsDiffLoading] = useState(false);
+
+  const handleOpenDiff = async () => {
+    setDiffOpen(true);
+    setIsDiffLoading(true);
+    const data = await getRunDiff(row.runId);
+    setDiffData(data);
+    setIsDiffLoading(false);
+  };
+
   const runByLabel = row.runByScheduleId
     ? `${row.runByScheduleId}`
     : row.runByUserId
@@ -198,6 +211,15 @@ export const CollapsibleRow = ({ row, handleDelete, isOpen, onToggleExpanded, cu
                 return (
                   <TableCell key={column.id} align={column.align}>
                     {row.status === 'success' && <Chip label={t('runs_table.run_status_chips.success')} color="success" variant="outlined" />}
+                    {row.status === 'success' && row.hasChanges && (
+                      <Chip
+                        label="Changed"
+                        color="info"
+                        variant="outlined"
+                        sx={{ ml: 1, cursor: 'pointer' }}
+                        onClick={handleOpenDiff}
+                      />
+                    )}
                     {row.status === 'running' && <Chip label={t('runs_table.run_status_chips.running')} color="warning" variant="outlined" />}
                     {row.status === 'scheduled' && <Chip label={t('runs_table.run_status_chips.scheduled')} variant="outlined" />}
                     {row.status === 'queued' && <Chip label={t('runs_table.run_status_chips.queued')} variant="outlined" />}
@@ -361,6 +383,73 @@ export const CollapsibleRow = ({ row, handleDelete, isOpen, onToggleExpanded, cu
           >
             {t('common.delete', { defaultValue: 'Delete' })}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={diffOpen}
+        onClose={() => setDiffOpen(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>Changes vs previous run</DialogTitle>
+        <DialogContent>
+          {isDiffLoading ? (
+            <Box display="flex" justifyContent="center" py={4}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : !diffData ? (
+            <DialogContentText>No previous run found to compare against.</DialogContentText>
+          ) : (
+            (() => {
+              const parts: Change[] = diffLines(diffData.previousText, diffData.currentText);
+              return (
+                <Box sx={{ display: 'flex', gap: 2, maxHeight: '60vh' }}>
+                  <Box sx={{ flex: 1, overflow: 'auto' }}>
+                    <Typography variant="subtitle2" gutterBottom>Previous run</Typography>
+                    <Box component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 13, m: 0 }}>
+                      {parts.map((part, i) =>
+                        part.added ? null : (
+                          <Box
+                            key={i}
+                            component="span"
+                            sx={{
+                              display: 'block',
+                              backgroundColor: part.removed ? 'rgba(255,0,0,0.15)' : 'transparent',
+                            }}
+                          >
+                            {part.value}
+                          </Box>
+                        )
+                      )}
+                    </Box>
+                  </Box>
+                  <Box sx={{ flex: 1, overflow: 'auto' }}>
+                    <Typography variant="subtitle2" gutterBottom>Current run</Typography>
+                    <Box component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 13, m: 0 }}>
+                      {parts.map((part, i) =>
+                        part.removed ? null : (
+                          <Box
+                            key={i}
+                            component="span"
+                            sx={{
+                              display: 'block',
+                              backgroundColor: part.added ? 'rgba(0,200,0,0.15)' : 'transparent',
+                            }}
+                          >
+                            {part.value}
+                          </Box>
+                        )
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              );
+            })()
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDiffOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </React.Fragment>

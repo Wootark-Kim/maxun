@@ -9,6 +9,7 @@ import {
 } from './browser-management/controller';
 import { WorkflowFile } from 'maxun-core';
 import Run from './models/Run';
+import { Op } from 'sequelize';
 import Robot from './models/Robot';
 import { browserPool } from './server';
 import { Page } from 'playwright-core';
@@ -334,7 +335,29 @@ async function processRunExecution(data: ExecuteRunData): Promise<void> {
           }
 
           await run.update({ status: 'success', finishedAt: new Date().toLocaleString(), log: `${formats.join(', ').toUpperCase()} conversion completed successfully`, serializableOutput, binaryOutput });
+          
+          if ((recording.recording_meta as any).compareRuns && serializableOutput.text) {
+            try {
+              const previousRun = await Run.findOne({
+                where: { robotMetaId: plainRun.robotMetaId, status: 'success', runId: { [Op.ne]: data.runId } },
+                order: [['finishedAt', 'DESC']],
+              });
 
+              if (previousRun) {
+                const previousText = previousRun.serializableOutput?.text?.[0]?.content;
+                const currentText = serializableOutput.text[0]?.content;
+                const hasChanged = previousText !== undefined && previousText !== currentText;
+
+                if (hasChanged) {
+                  await run.update({ hasChanges: true });
+                  logger.log('info', `Run ${data.runId} has changes compared to previous run ${previousRun.runId}`);
+                }
+              }
+            } catch (compareError: any) {
+              logger.log('warn', `Run comparison failed for run ${data.runId}: ${compareError.message}`);
+            }
+          }
+          
           let uploadedBinaryOutput: Record<string, string> = {};
           if (Object.keys(binaryOutput).length > 0) {
             const svc = new BinaryOutputService('maxun-run-screenshots');
