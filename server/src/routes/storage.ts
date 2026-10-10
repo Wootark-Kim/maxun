@@ -1123,8 +1123,8 @@ router.delete('/runs/robot/:robotMetaId', requireSignIn, async (req: Authenticat
       return res.status(404).json({ error: 'Robot not found.' });
     }
     const robotType = robot.recording_meta?.type;
-    if (robotType !== 'scrape' && robotType !== 'doc-extract' && robotType !== 'doc-parse' && robotType !== 'search' && robotType !== 'crawl') {
-      return res.status(400).json({ error: 'Runs can only be bulk-deleted for scrape, document, search, and crawl robots.' });
+    if (robotType !== 'scrape' && robotType !== 'doc-extract' && robotType !== 'doc-parse' && robotType !== 'search' && robotType !== 'crawl' && robotType !== 'extract') {
+      return res.status(400).json({ error: 'Runs can only be bulk-deleted for scrape, document, search, crawl, and extract robots.' });
     }
 
     await Run.destroy({ where: { robotMetaId: req.params.robotMetaId } });

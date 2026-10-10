@@ -443,6 +443,10 @@ export const RunsTable: React.FC<RunsTableProps> = ({
     (recording: any) => recording?.recording_meta?.id === robotMetaId && recording.recording_meta.type === 'crawl'
   );
 
+  const isExtractRobot = (robotMetaId: string) => recordings.some(
+    (recording: any) => recording?.recording_meta?.id === robotMetaId && recording.recording_meta.type === 'extract'
+  );
+
   const parseDateString = (dateStr: string): Date => {
     try {
       if (dateStr.includes('PM') || dateStr.includes('AM')) {
@@ -623,7 +627,7 @@ export const RunsTable: React.FC<RunsTableProps> = ({
                     <Typography variant="h6">{getRunGroupName(robotNames, robotMetaId, data)}</Typography>
                   </AccordionSummary>
                   <AccordionDetails>
-                    {(isScrapeRobot(robotMetaId) || isDocumentRobot(robotMetaId) || isSearchRobot(robotMetaId) || isCrawlRobot(robotMetaId)) && (
+                    {(isScrapeRobot(robotMetaId) || isDocumentRobot(robotMetaId) || isSearchRobot(robotMetaId) || isCrawlRobot(robotMetaId) || isExtractRobot(robotMetaId)) && (
                       <Box display="flex" justifyContent="flex-end" mb={1}>
                         <Button
                           color="error"
